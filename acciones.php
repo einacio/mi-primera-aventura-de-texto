@@ -46,21 +46,14 @@ function mirar(){
 	switch ($s['hab']){
 		case 1:
 			$m=<<<EOD
-Parece ser el recibidor de una casa elegante. Esta agradablemente iluminada,
-aunque no hay fuente de luz visible. En una de las paredes hay un tapiz{$s['estados']['tapiz_hab']} y en la otra
-un escudo de armas. Hacia el oeste hay {$s['estados']['puerta_hab']} y hacia el este un
-arco conecta con otra habitación. En el techo esta la trampilla por la que entró el
-personaje, ahora cerrada.
+Parece ser el recibidor de una casa elegante. Esta agradablemente iluminada, aunque no hay fuente de luz visible. En una de las paredes hay un tapiz{$s['estados']['tapiz_hab']} y en la otra un escudo de armas. Hacia el oeste hay {$s['estados']['puerta_hab']} y hacia el este un arco conecta con otra habitación.
+En el techo esta la trampilla por la que entró el personaje, ahora cerrada.
 EOD;
 			break;
 		case 2:
 			$m=<<<EOD
-Es una pequeña sala alfombrada que parece no haber sido usada en mucho tiempo,
-evidenciado por la gruesa capa de polvo que cubre todo en la habitación.
-Al igual que la anterior, esta iluminada sin fuente aparente.
-En una pared hay colgado un cuadro{$s['estados']['cuadro_hab']}.
-En la pared opuesta a la entrada hay una mesa cuberta de polvo y
-debajo se ve una caja de herramientas.
+Es una pequeña sala alfombrada que parece no haber sido usada en mucho tiempo, evidenciado por la gruesa capa de polvo que cubre todo en la habitación. Al igual que la anterior, esta iluminada sin fuente aparente.
+En una pared hay colgado un cuadro{$s['estados']['cuadro_hab']}. En la pared opuesta a la entrada hay una mesa cuberta de polvo y debajo se ve una caja de herramientas.
 EOD;
 			break;
 	}
@@ -77,10 +70,11 @@ function agarrar($obj){
 	if (in_array($obj,$s[$arrHab])){
 		if (in_array($obj,$objetos_agarrables)){
 			$s['inventario'][]=$obj;
-			unset($s[$arrHab][array_keys($s[$arrHab],$obj)]);
+			unset($s[$arrHab][array_search($obj,$s[$arrHab])]);
 			if ($obj==='estatuilla'){
-				$s['estados']['cuadro_est']='El espacio está vacío.';
+				$s['estados']['cuadro_est']='. El espacio está vacío';
 			}
+			$m='Te guardas '.strtoupper($obj).' en el bolsillo.';
 		}else{
 			$m= strtoupper($obj).' no se puede AGARRAR.';
 		}
@@ -104,7 +98,7 @@ function inventario(){
 function examinar($obj){
 	global $s;
 	$m='';
-	if (in_array($obj,array_merge($s['hab'.$s['hab'].'_objs'],$s['inventario']))){
+	if (in_array($obj,array_merge($s['hab'.$s['hab'].'_objs'],$s['inventario'],array('yo')))){
 		switch ($obj){
 			case 'caja':
 				$m='Es una CAJA de herramientas común. Dentro hay algunas herramientas en muy mal estado.';
@@ -113,7 +107,7 @@ function examinar($obj){
 				}
 				break;
 			case 'cuadro':
-				$m='Es una hermosa pintura'.$s['estados']['cuadro_hab'].$s['estados']['cuadro_est'];
+				$m='Es una hermosa pintura'.$s['estados']['cuadro_hab'].$s['estados']['cuadro_est'].'.';
 				break;
 			case 'escudo':
 				if (in_array('espada',$s['inventario'])){
@@ -147,7 +141,13 @@ function examinar($obj){
 				$m='Una pesada puerta metálica que bloquea la salida.';
 				break;
 			case 'tapiz':
-				$m=$s['estado']['tapiz'];
+				$m=$s['estados']['tapiz'];
+				break;
+			case 'yo':
+				$m='Pareces un gigantesto huevo de pascua. Interesante.';
+				break;
+			default:
+				$m=strtoupper($obj).' no tiene descripcion.';
 				break;
 		}
 	}else{
@@ -159,7 +159,51 @@ function examinar($obj){
 function usar($obj){
 	global $s;
 	$m='';
-
+	if (in_array($obj,$s['inventario'])){ //solo pueden usarse cosas que uno tenga encima
+		switch ($obj){
+			case 'espada':
+				$m='No hay nada para cortar.';
+				if ($s['hab']===1){
+					if (!$s['estados']['tapiz_hab']){
+						$s['estados']['tapiz_hab']=' hecho trizas';
+						$s['estados']['tapiz']='Del hermoso tapiz solo quedan algunas tiras de tela colgantes. Detrás sobre la pared se lee \'Insert secret hiding place here\'.';
+						$m='Has hecho trizas el tapiz que colgaba de la pared. Se lo tenía merecido.';
+					}
+				}elseif($s['hab']===2){
+					if (!$s['estados']['cuadro_est']){
+						$s['estados']['cuadro_est']='. Hay un espacio detrás donde hay una hermosa estatuilla';
+						$s['estados']['cuadro_hab']=' con un tajo a través';
+						$s['hab2_objs'][]='estatuilla';
+						$m='En un arranque de ingenio (o simple belicosidad), le das un espadazo al cuadro.';
+					}
+				}
+				break;
+			case 'llave':
+				if ($s['hab']===1){
+					$m='Al insertar la llave en la cerradura de la gran puerta, esta simplemente desaparece.';
+					$s['estados']['puerta_hab']='el espacio donde estaba la puerta y una habitación oscura,';
+					unset($s['hab1_objs'][array_search('puerta',$s['hab1_objs'])]);
+					unset($s['inventario'][array_search('llave',$s['inventario'])]);
+					$s['puerta_abierta']=true;
+				}else{
+					$m='No hay donde usar una llave de ese tamaño.';
+				}
+				break;
+			case 'martillo':
+				if (in_array('estatuilla',$s['inventario'])){
+					$m='Le da un fuerte golpe a la estatuilla. En tu mano quedan una hermosa esmeralda y algo de polvo blanco. Bien hecho!';
+					unset($s['inventario'][array_search('estatuilla',$s['inventario'])]);
+					$s['inventario'][]='esmeralda';
+				}else{
+					$m='No hay nada que puedas romper a mano.';
+				}
+				break;
+			default:
+				$m='No tienes idea de como usar '.strtoupper($obj).' ahora.';
+		}
+	}else{
+		$m='No tienes '.strtoupper($obj).' encima.';
+	}
 	return $m;
 }
 
